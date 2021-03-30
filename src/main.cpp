@@ -3,9 +3,11 @@
 
 using namespace libyuv;
 
+int write_file(const char* path, uint8_t* data, int size);
+
 int main(int argc, char *argv[])
 {
-    if (argc != 4)
+    if (argc != 5)
     {
         printf("example\n   %s 640x480 yuvfile argbfile\n", argv[0]);
         return -1;
@@ -18,6 +20,7 @@ int main(int argc, char *argv[])
 
     char *yuv_file_path = argv[2];
     char *argb_file_path = argv[3];
+    char *rgba_file_path = argv[4];
 
     FILE *fp = fopen(yuv_file_path, "rb");
     if (!fp)
@@ -58,23 +61,56 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    FILE *out_file = fopen(argb_file_path, "wb");
-    if (!out_file)
+    if (0 != write_file(argb_file_path, argb_buf, argb_size))
     {
-        printf("failed to create argb file.\n");
+        printf("failed to write argb file.\n");
         return -1;
     }
 
-    ret = fwrite(argb_buf, 1, argb_size, out_file);
-    if (ret < 0)
+    int rgba_size = width * height * 4;
+    uint8_t rgba_buf[rgba_size];
+
+    ret = ARGBToRGBA(argb_buf, width * 4, rgba_buf, width * 4, width, height);
+    if (ret != 0)
     {
-        printf("failed to write argb to file. %d\n", ret);
+        printf("failed to ARGBToRGBA. %d\n", ret);
         return -1;
     }
 
-    fclose(out_file);
+    if (0 != write_file(rgba_file_path, rgba_buf, rgba_size))
+    {
+        printf("failed to write argb file.\n");
+        return -1;
+    }
 
     printf("convert success.\n");
+
+    return 0;
+}
+
+int write_file(const char* path, uint8_t* data, int size)
+{
+    FILE* f = fopen(path, "wb");
+    if (!f)
+    {
+        printf("failed to open file: %s.\n", path);
+        return -1;
+    }
+
+    int ret = fwrite(data, 1, size, f);
+    if (ret < 0)
+    {
+        printf("failed to write file: %s. Ret: %d\n", path, ret);
+        return -1;
+    }
+
+    fclose(f);
+
+    if (ret != size)
+    {
+        printf("fail: wrote %d/%d bytes\n", ret, size);
+        return -1;
+    }
 
     return 0;
 }
